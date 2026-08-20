@@ -80,6 +80,13 @@ module ID_EXE_REG
     input wire id_alu_and_en_i,
 
     input wire id_alu_pass_b_en_i,
+
+    input reg [7:0]  Out_GPHT_Index_i,
+    input reg [7:0]  Out_LPHT_Index_i,
+    input reg        Out_GPHT_Pred_i,
+    input reg        Out_LPHT_Pred_i,   
+    input reg [31:0] pre_pc_i,
+    input reg        Pred_Taken_i,
  //-------------------------
     // EX阶段
     //-------------------------
@@ -153,6 +160,12 @@ module ID_EXE_REG
     output reg ex_alu_and_en_o,
 
     output reg ex_alu_pass_b_en_o
+    output reg [7:0]  Out_GPHT_Index_o,
+    output reg [7:0]  Out_LPHT_Index_o,
+    output reg        Out_GPHT_Pred_o,
+    output reg        Out_LPHT_Pred_o,   
+    output reg [31:0] pre_pc_o,
+    output reg        Pred_Taken_o,
 );
 
 
@@ -212,6 +225,13 @@ module ID_EXE_REG
         ex_alu_and_en_o <= 1'b0;
         ex_alu_pass_b_en_o <= 1'b0;
 
+        //
+        Out_GPHT_Index_o <= 8'b0;
+        Out_LPHT_Index_o <= 8'b0;
+        Out_GPHT_Pred_o <= 1'b0;
+        Out_LPHT_Pred_o <= 1'b0;   
+        pre_pc_o <= 32'b0;
+        Pred_Taken_o <= 1'b0;
     end
 
 
@@ -264,6 +284,12 @@ module ID_EXE_REG
         ex_alu_and_en_o <= 1'b0;
         ex_alu_pass_b_en_o <= 1'b0;
 
+        Out_GPHT_Index_o <= 8'b0;
+        Out_LPHT_Index_o <= 8'b0;
+        Out_GPHT_Pred_o <= 1'b0;
+        Out_LPHT_Pred_o <= 1'b0;   
+        pre_pc_o <= 32'b0;
+        Pred_Taken_o <= 1'b0;
     end
 
 
@@ -329,6 +355,13 @@ module ID_EXE_REG
         ex_alu_and_en_o <= id_alu_and_en_i;
 
         ex_alu_pass_b_en_o <= id_alu_pass_b_en_i;
+
+        Out_GPHT_Index_o <= Out_GPHT_Index_i;
+        Out_LPHT_Index_o <= Out_LPHT_Index_i;
+        Out_GPHT_Pred_o <= Out_GPHT_Pred_i;
+        Out_LPHT_Pred_o <= Out_LPHT_Pred_i;   
+        pre_pc_o <= pre_pc_i;
+        Pred_Taken_o <= Pred_Taken_i;
 
     end
 
