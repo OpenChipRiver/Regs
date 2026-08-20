@@ -42,7 +42,6 @@ module ID_EXE_REG
     //-------------------------
     // ALU控制(one-hot)
     //-------------------------
-
     input wire id_alu_add_en_i,
     input wire id_alu_sub_en_i,
     input wire id_alu_sll_en_i,
@@ -61,21 +60,19 @@ module ID_EXE_REG
     input wire        Out_LPHT_Pred_i,   
     input wire [31:0] pre_pc_i,
     input wire        Pred_Taken_i,
- //-------------------------
+
+    //-------------------------
     // EX阶段
     //-------------------------
-
     output reg [31:0] ex_pc_o,
     output reg [31:0] ex_rs1_data_o,
     output reg [31:0] ex_rs2_data_o,
     output reg [31:0] ex_imm_o,
     output reg [4:0] ex_rd_o,
 
-
     //-------------------------
     // 控制信号
     //-------------------------
-
     output reg ex_load_o,
     output reg ex_store_o,
     output reg ex_branch_o,
@@ -92,7 +89,6 @@ module ID_EXE_REG
     //-------------------------
     // ALU控制
     //-------------------------
-
     output reg ex_alu_add_en_o,
     output reg ex_alu_sub_en_o,
     output reg ex_alu_sll_en_o,
