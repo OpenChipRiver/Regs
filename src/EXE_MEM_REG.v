@@ -1,168 +1,170 @@
 // ============================================================================
 // EXE_MEM_REG - EXE / MEM1 流水线寄存器
 //
-// 职责：
-//   1. 锁存 EXE 阶段产生的 ALU 结果和 Store 写数据
-//   2. 锁存后续 MEM / WB 阶段仍然需要的数据和控制信息
-//   3. LSU stall 时保持当前内容
+// 作用：
+//   1. 保存 EXE 阶段的 ALU 结果和 Store 写数据。
+//   2. 将 MEM/WB 后续需要的数据和控制信号继续传到 MEM1。
+//   3. stall 有效时保持当前内容不变。
 //
 // 数据来源：
 //
 //   来自 exe_stage：
-//     exe_alu_result
-//     exe_store_data
+//     exe_alu_result_i
+//     exe_store_data_i
 //
-//   从 ID_EXE_REG 直接向后透传：
-//     exe_pc
-//     exe_rd_idx
-//     exe_load
-//     exe_store
-//     exe_mem_size
-//     exe_mem_unsigned
-//     exe_rd_valid
-//     exe_wb_sel
+//   从 ID_EXE_REG 继续传递：
+//     exe_pc_plus4_i
+//     exe_rd_idx_i
+//     exe_load_i
+//     exe_store_i
+//     exe_mem_size_i
+//     exe_mem_unsigned_i
+//     exe_rd_valid_i
+//     exe_wb_sel_i
 //
-// 控制流说明：
+// 控制流相关输出不经过本寄存器：
 //
-//   最新 exe_stage 输出的：
-//     exe_is_jump_o
-//     exe_jump_base_o
-//     exe_jump_offset_o
-//     exe_is_jalr_o
+//   exe_actual_taken_o / exe_actual_target_o
+//     -> Branch Predictor
 //
-//   不经过本流水线寄存器。
-//   这些信号直接送往 PC / Next-PC 单元，用于计算新的 PC。
-//
-//   Branch / JAL：
-//     target = PC + imm
-//
-//   JALR：
-//     target = (rs1 + imm) & ~1
+//   exe_redirect_valid_o / exe_redirect_target_o
+//     -> Pipeline Control / Fetch
 //
 // ============================================================================
 
 module EXE_MEM_REG (
-    input wire clk,
-    input wire rst_n,
+    // ========================================================================
+    // 时钟与复位
+    // ========================================================================
+    input wire clk_i,
+    input wire rst_n_i,
 
     // ========================================================================
     // 流水线控制
     // ========================================================================
-    input wire stall,
+    input wire stall_i,
 
     // ========================================================================
-    // 来自 exe_stage 的执行结果
-    // ========================================================================
-    input wire [31:0] exe_alu_result,
-    input wire [31:0] exe_store_data,
-
-    // ========================================================================
-    // 从 ID_EXE_REG 直接向后透传的信息
+    // 来自 exe_stage
     // ========================================================================
 
-    // 当前指令 PC
-    input wire [31:0] exe_pc,
+    // ALU 运算结果。
+    // Load/Store 时为有效内存地址。
+    input wire [31:0] exe_alu_result_i,
 
-    // 目的寄存器
-    input wire [4:0] exe_rd_idx,
+    // Store 写入内存的数据，即前递后的 rs2。
+    input wire [31:0] exe_store_data_i,
+
+    // ========================================================================
+    // 从 ID_EXE_REG 继续向后传递
+    // ========================================================================
+
+    // 当前指令的 PC + 4。
+    // JAL/JALR 写回 rd 时使用。
+    input wire [31:0] exe_pc_plus4_i,
+
+    // 目的寄存器编号。
+    input wire [4:0] exe_rd_idx_i,
 
     // ========================================================================
     // MEM 控制
     // ========================================================================
-    input wire       exe_load,
-    input wire       exe_store,
-    input wire [1:0] exe_mem_size,
-    input wire       exe_mem_unsigned,
+    input wire       exe_load_i,
+    input wire       exe_store_i,
+    input wire [1:0] exe_mem_size_i,
+    input wire       exe_mem_unsigned_i,
 
     // ========================================================================
     // WB 控制
     // ========================================================================
-    input wire       exe_rd_valid,
-    input wire [1:0] exe_wb_sel,
+    input wire       exe_rd_valid_i,
+    input wire [1:0] exe_wb_sel_i,
 
     // ========================================================================
     // 输出到 MEM1
     // ========================================================================
 
     // EXE 结果
-    output reg [31:0] mem1_alu_result,
-    output reg [31:0] mem1_store_data,
+    output reg [31:0] mem1_alu_result_o,
+    output reg [31:0] mem1_store_data_o,
 
-    // 指令信息
-    output reg [31:0] mem1_pc,
-    output reg [4:0]  mem1_rd_idx,
+    // 写回相关数据
+    output reg [31:0] mem1_pc_plus4_o,
+    output reg [4:0]  mem1_rd_idx_o,
 
     // MEM 控制
-    output reg       mem1_load,
-    output reg       mem1_store,
-    output reg [1:0] mem1_mem_size,
-    output reg       mem1_mem_unsigned,
+    output reg       mem1_load_o,
+    output reg       mem1_store_o,
+    output reg [1:0] mem1_mem_size_o,
+    output reg       mem1_mem_unsigned_o,
 
     // WB 控制
-    output reg       mem1_rd_valid,
-    output reg [1:0] mem1_wb_sel
+    output reg       mem1_rd_valid_o,
+    output reg [1:0] mem1_wb_sel_o
 );
 
   // ==========================================================================
   // EXE / MEM1 流水线寄存器
   // ==========================================================================
-  always @(posedge clk or negedge rst_n) begin
+  always @(posedge clk_i or negedge rst_n_i) begin
 
-    if (!rst_n) begin
+    if (!rst_n_i) begin
       // ----------------------------------------------------------------------
-      // 数据
+      // EXE 结果
       // ----------------------------------------------------------------------
-      mem1_alu_result   <= 32'b0;
-      mem1_store_data   <= 32'b0;
-
-      mem1_pc           <= 32'b0;
-      mem1_rd_idx       <= 5'b0;
+      mem1_alu_result_o   <= 32'b0;
+      mem1_store_data_o   <= 32'b0;
 
       // ----------------------------------------------------------------------
-      // MEM 控制
+      // 写回相关数据
       // ----------------------------------------------------------------------
-      mem1_load         <= 1'b0;
-      mem1_store        <= 1'b0;
-      mem1_mem_size     <= 2'b0;
-      mem1_mem_unsigned <= 1'b0;
-
-      // ----------------------------------------------------------------------
-      // WB 控制
-      // ----------------------------------------------------------------------
-      mem1_rd_valid     <= 1'b0;
-      mem1_wb_sel       <= 2'b0;
-
-    end
-    else if (!stall) begin
-      // ----------------------------------------------------------------------
-      // 来自 EXE 的执行结果
-      // ----------------------------------------------------------------------
-      mem1_alu_result   <= exe_alu_result;
-      mem1_store_data   <= exe_store_data;
-
-      // ----------------------------------------------------------------------
-      // 从 ID/EX 继续向后传递
-      // ----------------------------------------------------------------------
-      mem1_pc           <= exe_pc;
-      mem1_rd_idx       <= exe_rd_idx;
+      mem1_pc_plus4_o     <= 32'b0;
+      mem1_rd_idx_o       <= 5'b0;
 
       // ----------------------------------------------------------------------
       // MEM 控制
       // ----------------------------------------------------------------------
-      mem1_load         <= exe_load;
-      mem1_store        <= exe_store;
-      mem1_mem_size     <= exe_mem_size;
-      mem1_mem_unsigned <= exe_mem_unsigned;
+      mem1_load_o         <= 1'b0;
+      mem1_store_o        <= 1'b0;
+      mem1_mem_size_o     <= 2'b0;
+      mem1_mem_unsigned_o <= 1'b0;
 
       // ----------------------------------------------------------------------
       // WB 控制
       // ----------------------------------------------------------------------
-      mem1_rd_valid     <= exe_rd_valid;
-      mem1_wb_sel       <= exe_wb_sel;
+      mem1_rd_valid_o     <= 1'b0;
+      mem1_wb_sel_o       <= 2'b0;
+
+    end
+    else if (!stall_i) begin
+      // ----------------------------------------------------------------------
+      // 保存 EXE 结果
+      // ----------------------------------------------------------------------
+      mem1_alu_result_o   <= exe_alu_result_i;
+      mem1_store_data_o   <= exe_store_data_i;
+
+      // ----------------------------------------------------------------------
+      // 继续向后传递的数据
+      // ----------------------------------------------------------------------
+      mem1_pc_plus4_o     <= exe_pc_plus4_i;
+      mem1_rd_idx_o       <= exe_rd_idx_i;
+
+      // ----------------------------------------------------------------------
+      // MEM 控制
+      // ----------------------------------------------------------------------
+      mem1_load_o         <= exe_load_i;
+      mem1_store_o        <= exe_store_i;
+      mem1_mem_size_o     <= exe_mem_size_i;
+      mem1_mem_unsigned_o <= exe_mem_unsigned_i;
+
+      // ----------------------------------------------------------------------
+      // WB 控制
+      // ----------------------------------------------------------------------
+      mem1_rd_valid_o     <= exe_rd_valid_i;
+      mem1_wb_sel_o       <= exe_wb_sel_i;
     end
 
-    // stall == 1：
-    // 不执行赋值，保持当前 MEM1 流水级内容。
+    // stall_i == 1 时不更新，保持原值。
 
   end
 
