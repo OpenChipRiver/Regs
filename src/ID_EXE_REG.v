@@ -7,7 +7,6 @@ module ID_EXE_REG
     //-------------------------
     // 数据通路
     //-------------------------
-    input wire [31:0] id_pc_i,
     input wire [31:0] id_rs1_data_i,
     input wire [31:0] id_rs2_data_i,
     input wire [31:0] id_imm_i,
@@ -57,12 +56,10 @@ module ID_EXE_REG
     input wire        Out_GPHT_Pred_i,
     input wire        Out_LPHT_Pred_i,   
     input wire [31:0] pre_pc_i,
-    input wire        Pred_Taken_i,
-
+    input wire [31:0] id_pc_i
     //-------------------------
     // EX阶段
     //-------------------------
-    output reg [31:0] ex_pc_o,
     output reg [31:0] ex_rs1_data_o,
     output reg [31:0] ex_rs2_data_o,
     output reg [31:0] ex_imm_o,
@@ -98,12 +95,13 @@ module ID_EXE_REG
     output reg ex_alu_or_en_o,
     output reg ex_alu_and_en_o,
     output reg ex_alu_pass_b_en_o,
+    //BP
     output reg [7:0]  Out_GPHT_Index_o,
     output reg [7:0]  Out_LPHT_Index_o,
     output reg        Out_GPHT_Pred_o,
     output reg        Out_LPHT_Pred_o,   
     output reg [31:0] pre_pc_o,
-    output reg        Pred_Taken_o,
+    output reg [31:0] ex_pc_o
 );
 
 
@@ -153,7 +151,6 @@ module ID_EXE_REG
         Out_GPHT_Pred_o <= 1'b0;
         Out_LPHT_Pred_o <= 1'b0;   
         pre_pc_o <= 32'b0;
-        Pred_Taken_o <= 1'b0;
     end
 
 
@@ -195,7 +192,7 @@ module ID_EXE_REG
         Out_GPHT_Pred_o <= 1'b0;
         Out_LPHT_Pred_o <= 1'b0;   
         pre_pc_o <= 32'b0;
-        Pred_Taken_o <= 1'b0;
+       
     end
 
 
@@ -241,7 +238,7 @@ module ID_EXE_REG
         Out_GPHT_Pred_o <= Out_GPHT_Pred_i;
         Out_LPHT_Pred_o <= Out_LPHT_Pred_i;   
         pre_pc_o <= pre_pc_i;
-        Pred_Taken_o <= Pred_Taken_i;
+ 
     end
     // stall_i == 1:
     // 不执行任何操作，保持当前EX寄存器内容
