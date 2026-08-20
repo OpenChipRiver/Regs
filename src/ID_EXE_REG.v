@@ -4,8 +4,6 @@ module ID_EXE_REG
     input wire rst,
     input wire stall_i,
     input wire flush_i,
-    input wire valid_i,  
-
     //-------------------------
     // 数据通路
     //-------------------------
@@ -99,7 +97,7 @@ module ID_EXE_REG
     output reg ex_alu_sra_en_o,
     output reg ex_alu_or_en_o,
     output reg ex_alu_and_en_o,
-    output reg ex_alu_pass_b_en_o
+    output reg ex_alu_pass_b_en_o,
     output reg [7:0]  Out_GPHT_Index_o,
     output reg [7:0]  Out_LPHT_Index_o,
     output reg        Out_GPHT_Pred_o,
